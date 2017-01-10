@@ -18,7 +18,7 @@ class TmsuModel
 
   def self.configure(root_path:)
     Config[:root_path] = root_path || "./db".tap do |path|
-      `mkdir #{path}`
+      `mkdir -p #{path}`
     end
   end
 
@@ -51,16 +51,31 @@ class TmsuModel
     query opts_to_query opts
   end
 
+  def self.all
+
+  end
+
   def self.query string
-    TmsuFile.new(query_glob).paths_query(query)
+    TmsuFile.new(query_glob).paths_query(query).map do |path|
+      new TmsuFile.new(path).tags
+    end
   end
 
   def self.update_all opts={}
-    Dir.glob(query_glob).each { |path| new(path).update(opts) }
+    Dir.glob(query_glob).each do |path|
+      errors = new(path).tap { |inst| inst.update(opts) }.errors
+      unless errors.empty?
+        raise(
+          ArgumentError, "couldn't update all. Path #{path} caused errors: #{errors.join(", ")}"
+        )
+      end
+    end
+    true
   end
 
   def self.destroy_all opts={}
     Dir.glob(query_glob).each { |path| `rm #{path}` }
+    true
   end
 
   attr_reader :attributes, :errors, :path
@@ -92,7 +107,10 @@ class TmsuModel
   end
 
   def method_missing(sym, *arguments, &blk)
-    if attributes.keys.include? sym
+    attr_name = sym.to_s[0..-1]
+    if sym.to_s[-1] == "=" && attributes.keys.include?(attr_name)
+      attributes[attr_name] = arguments[0]
+    elsif attributes.keys.include? sym
       attributes[sym]
     else
       super
@@ -138,19 +156,33 @@ class TmsuModel
 
   def save
     ensure_persisted
+    return false unless valid?
     tag attributes
-    self
+    true
   end
 
   def update attrs={}
+    original_attrs = attributes.clone
     attrs.each_key { |k| self[k] = attrs[k] }
+    unless valid?
+      # rollback attribute change
+      self.attributes.clear
+      original_attrs.each { |k,v| self[k] = v }
+      return false
+    end
     save
-    self
+    true
   end
 
   def destroy
     `rm #{path}`
     self
+  end
+
+  def delete(attr)
+    untag(attr)
+    attributes.delete attr
+    attr
   end
 
 end
@@ -172,7 +204,7 @@ module TmsuRubyInitializer
     puts "initializing tmsu"
     puts system "tmsu init"
     puts "making vfs_path #{vfs_path}"
-    puts system "mkdir #{vfs_path}"
+    puts system "mkdir -p #{vfs_path}"
     puts "mounting vfs path"
     puts system "tmsu mount #{vfs_path}"
   end
@@ -186,7 +218,6 @@ module TmsuFileAPI
   using SystemPatch
 
   def tags
-    ensure_persisted
     system("tmsu tags #{path}").split(" ")[1..-1].reduce({}) do |res, tag|
       key, val = tag.split("=")
       res.tap { res[key] = val }
@@ -202,7 +233,6 @@ module TmsuFileAPI
 
   def untag tag_list
     `touch #{path}` unless persisted?
-    attributes.delete
     system "tmsu untag #{path} #{tag_list}"
     tags
   end
@@ -227,6 +257,17 @@ module TmsuFileAPI
   end
 
   def tag_selector(tag_obj)
+    system "tmsu tag --tags '#{build_tag_arg tag_obj}' #{path}"
+    files tag_obj
+  end
+
+  def untag_selector(tag_obj)
+    tag_arg = case tag_obj
+    when String
+      tag_obj
+    when Array
+      tag_obj.join(" ")
+    end
     system "tmsu tag --tags '#{build_tag_arg tag_obj}' #{path}"
     files tag_obj
   end
