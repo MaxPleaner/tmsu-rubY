@@ -68,6 +68,9 @@ u.write "hello"
 # Those are stored using TMSU tags
 u.tags # => { email: "max.pleaner@gmail.com", name: "max" }
 
+# Consider the tags read-only
+u.tags == u.attributes # true
+
 # Attributes can be deleted
 u.delete :name
 u.tags # => { email: "max.pleaner@gmail.com" }
