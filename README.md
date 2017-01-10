@@ -1,6 +1,6 @@
 This is an ORM similar to ActiveRecord, but uses the filesystem instead.
 
-It uses TMSU which is a "non-hierarchical" filesystem tagging system.
+It uses TMSU which is a filesystem tagging system.
 
 Usage:
 
