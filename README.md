@@ -35,6 +35,7 @@ end
 
 **Create instances**
 
+```rb
 # create, update, and delete
 u = User.new name: "max"
 u.valid? # => false
