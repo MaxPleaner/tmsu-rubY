@@ -96,7 +96,9 @@ User.all[0].name == "max" # => true
 User.query("name != 'melvin' and email")[0].name == "max" # => true
 ```
 
-You can also skip `TmsuModel` and use `TmsuRuby.file` instead. This does _not_ handle creation / deletion of files. It should only be used with files that already exist.
+**Use TmsuRuby.file**
+
+An alternative to `TmsuModel` is to use `TmsuRuby.file` instead. This does _not_ handle creation / deletion of files. It should only be used with files that already exist.
 
 Note that these methods are technically available on `TmsuModel` instances, callable on the `tmsu_file` attribute. But this shoudln't be done, because it will cause the in-memory attributes to be out of sync.
 
@@ -150,7 +152,7 @@ query_glob = "./**/*.jpg")
 TmsuRuby.file(query_glob).paths_query("foo")
 
 # Search the whole filesystem for files with tag
-TmsuFile.file.files("foo")
+TmsuRuby.file.files("foo")
 ```
 
 
