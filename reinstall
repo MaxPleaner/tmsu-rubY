@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+Dir.glob("./*.gem").each { |path| `rm #{path}` }
+puts `gem uninstall -x tmsu_file_db`
+puts `gem build tmsu_file_db.gemspec`
+Dir.glob("./*.gem").each { |path| puts `gem install -f #{path}` }

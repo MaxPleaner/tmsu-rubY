@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+require 'tmsu_file_db'
+class TmsuFileDb::CLI < Thor
+  desc "test", "run tests"
+  def test
+    puts "No tests have been wrritten"
+    exit
+  end
+end
+TmsuFileDb::CLI.start ARGV
