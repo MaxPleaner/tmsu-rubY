@@ -67,8 +67,6 @@ u.write "hello"
 # The content of the file is not part of the "attributes" i.e. name and email
 # Those are stored using TMSU tags
 u.tags # => { email: "max.pleaner@gmail.com", name: "max" }
-
-# Consider the tags read-only
 u.tags == u.attributes # true
 
 # Attributes can be deleted
