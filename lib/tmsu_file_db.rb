@@ -12,18 +12,23 @@ class TmsuModel
   Validations = Hash.new { |h,k| h[k] = [] }
   Callbacks = {}
 
+
   def self.query_glob
-    "#{Config[:root_path] || "."}/*"
+    "#{root_path}/*"
+  end
+
+  def self.root_path
+    Config[:root_path] || "./db/#{SecureRandom.urlsafe_base64}"
   end
 
   def self.configure(root_path:)
     Config[:root_path] = root_path || "./db".tap do |path|
-      `mkdir -p #{path}`
+    `mkdir -p #{path}`
     end
   end
 
-  def self.validate(attribute=nil, &blk)
-    if attribute
+  def self.validate(attribute=:generic, &blk)
+    if attribute == :generic
       Validations[:generic] << blk
     else
       Validations[attribute] << blk
@@ -51,19 +56,21 @@ class TmsuModel
     query opts_to_query opts
   end
 
-  def self.all
+  def self.from_file(path)
+    new(TmsuFile.new(path).tags) { path }
+  end
 
+  def self.all
+    Dir.glob(query_glob).map &method(:from_path)
   end
 
   def self.query string
-    TmsuFile.new(query_glob).paths_query(query).map do |path|
-      new TmsuFile.new(path).tags
-    end
+    TmsuFile.new(query_glob).paths_query(query).map &method(:from_path)
   end
 
   def self.update_all opts={}
     Dir.glob(query_glob).each do |path|
-      errors = new(path).tap { |inst| inst.update(opts) }.errors
+      errors = new(path) { path }.tap { |inst| inst.update(opts) }.errors
       unless errors.empty?
         raise(
           ArgumentError, "couldn't update all. Path #{path} caused errors: #{errors.join(", ")}"
@@ -74,18 +81,24 @@ class TmsuModel
   end
 
   def self.destroy_all opts={}
-    Dir.glob(query_glob).each { |path| `rm #{path}` }
-    true
+    Dir.glob(query_glob).tap { |list| list.each { |path| `rm #{path}` } }
   end
 
   attr_reader :attributes, :errors, :path
 
-  def initialize(attrs={})
+  def initialize(attrs={}, &blk)
     attrs = attrs.with_indifferent_access
-    @path = build_id(attrs.delete :id)
+    @path = blk ? blk.call : build_id(attrs.delete :id)
     @attributes = attrs
     @persisted = File.exists? @path
     @errors = []
+  end
+
+  def ensure_root_path
+    unless @root_dir_created
+      `mkdir -p #{self.class.root_path}`
+      @root_dir_created = true
+    end
   end
 
   def build_id(given=nil)
@@ -106,11 +119,11 @@ class TmsuModel
     attributes[k]
   end
 
+  # Forwards method missing to getter, if possible
+  # To respect indifferent access of attributes,
+  # uses has_key? instead of keys.include?
   def method_missing(sym, *arguments, &blk)
-    attr_name = sym.to_s[0..-1]
-    if sym.to_s[-1] == "=" && attributes.keys.include?(attr_name)
-      attributes[attr_name] = arguments[0]
-    elsif attributes.keys.include? sym
+    if attributes.has_key? sym
       attributes[sym]
     else
       super
@@ -156,8 +169,10 @@ class TmsuModel
 
   def save
     ensure_persisted
+    ensure_root_path
     return false unless valid?
     tag attributes
+    @persisted = true
     true
   end
 
@@ -176,6 +191,7 @@ class TmsuModel
 
   def destroy
     `rm #{path}`
+    @persisted = false
     self
   end
 
@@ -292,10 +308,6 @@ class TmsuRuby
 
   def self.file(path=nil)
     TmsuRuby::TmsuFile.new path, vfs_path
-  end
-
-  def self.model(path=nil)
-    record = TmsuModel.new id: path
   end
 
   class TmsuFile

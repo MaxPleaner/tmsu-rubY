@@ -17,7 +17,8 @@ require 'tmsu_file_db'
 
 class User < TmsuModel
 
-  # this configure block is optional, it defaults to the current directory
+  # this configure block is optional
+  # it defaults to a randomly named dir in ./db
   configure root_path: "./db/users"
 
   # Validations must return an array
@@ -41,17 +42,17 @@ u = User.new name: "max"
 u.valid? # => false
 u.errors # => ["email isn't valid"]
 u.save # => false
-u.email = "maxpleaner@gmail.com"
+u.[:email] = "maxpleaner@gmail.com"
 u.valid? # => true
 u.save # => true
 u.update(email: "max.pleaner@gmail.com") # => true
 u.update(email: "") # => false
 
-# There are getter/setter methods for convenience
+# There are getter methods for convenience
+# Setters need to use []=
 u.name # => "max"
 u["name"] # => "max"
 u[:name] # => "max"
-u.name = "max p."
 u[:name] # => "max p."
 
 # All these getter/setters are working on 'attributes' under the hood.
@@ -89,18 +90,24 @@ _Note also that there is no `id` on models, only `path`, which is an absolute pa
 User.where(name: "max p.")[0].name == "max p." # => true
 User.find_by(name: "max p.").name == "max p." # => true
 User.update_all(name: "max") # => true
-User.all[0].name == "max" # => true
 
 # You can make arbitrary queries using TMSU syntax
 # e.g. select all users with email set that are not named melvin
 User.query("name != 'melvin' and email")[0].name == "max" # => true
 ```
 
+Although there's an index method (`all`), there's no typical auto-incrementing ids stored in TMSU. So to load a single, arbitrary record without tags, its file path is used:
+
+```rb
+  u.path # => "./db/users/23uj8d9j328dj"
+  User.from_file(u.path).name == "max p."
+```
+
 **Use TmsuRuby.file**
 
 An alternative to `TmsuModel` is to use `TmsuRuby.file` instead. This does _not_ handle creation / deletion of files. It should only be used with files that already exist.
 
-Note that these methods are technically available on `TmsuModel` instances as well. But this shoudln't be done, because it will cause the in-memory attributes to be out of sync.
+Note that these methods are technically available on `TmsuModel` instances as well. But this shouldn't be done, because it will cause the in-memory attributes to be out of sync. Also, some operations like `tag` will error if called on unsaved records.
 
 ```rb
 file_path = './my_pic.jpg' # this should already exist
@@ -145,7 +152,7 @@ Using `TmsuRuby.file` you can search by tag as well. All these methods return
 an array of absolute paths
 
 ```rb
-query_glob = "./**/*.jpg")
+query_glob = "./**/*.jpg"
 
 # To perform a scoped search (the same used by .where, .find_by, and .query):
 # This is a simple query, but the whole TMSU syntax is available
