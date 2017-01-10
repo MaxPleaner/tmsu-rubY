@@ -72,7 +72,12 @@ u.tags == u.attributes # true
 # Attributes can be deleted
 u.delete :name
 u.tags # => { email: "max.pleaner@gmail.com" }
+
+# Records can be deleted (this will destroy the file)
+u.destroy
+
 ```
+
 
 **Use class-level query methods**
 
