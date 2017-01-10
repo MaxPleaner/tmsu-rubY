@@ -100,7 +100,7 @@ User.query("name != 'melvin' and email")[0].name == "max" # => true
 
 An alternative to `TmsuModel` is to use `TmsuRuby.file` instead. This does _not_ handle creation / deletion of files. It should only be used with files that already exist.
 
-Note that these methods are technically available on `TmsuModel` instances, callable on the `tmsu_file` attribute. But this shoudln't be done, because it will cause the in-memory attributes to be out of sync.
+Note that these methods are technically available on `TmsuModel` instances as well. But this shoudln't be done, because it will cause the in-memory attributes to be out of sync.
 
 ```rb
 file_path = './my_pic.jpg' # this should already exist
