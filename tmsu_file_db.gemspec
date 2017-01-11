@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.authors     = ["maxpleaner"]
   s.email       = 'maxpleaner@gmail.com'
   s.required_ruby_version = '~> 2.3'
-  s.homepage    = "http://github.com/maxpleaner/tmsu_file_db"
+  s.homepage    = "http://github.com/maxpleaner/tmsu-ruby"
   s.files       = Dir["lib/**/*.rb", "bin/*", "**/*.md", "LICENSE"]
   s.require_path = 'lib'
   s.required_rubygems_version = ">= 2.5.1"

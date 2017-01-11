@@ -30,7 +30,7 @@ class TmsuModel
 
   def self.configure(root_path:)
     Config[:root_path] = root_path || "./db".tap do |path|
-    `mkdir -p #{path}`
+      `mkdir -p #{path}`
     end
   end
 
@@ -262,13 +262,6 @@ module TmsuRubyInitializer
   def init_tmsu
     puts "initializing tmsu"
     system "tmsu init"
-    puts "making vfs_path #{vfs_path}"
-    system "mkdir -p #{vfs_path}"
-    puts "mounting vfs path"
-    system "tmsu mount #{vfs_path}"
-  end
-  def vfs_path
-    "/home/max/tmsu_vfs"
   end
 end
 
@@ -313,8 +306,6 @@ module TmsuFileAPI
 
   def build_tag_arg obj
     case obj
-    when String
-      %{"#{obj}"}
     when Array
       obj.map { |x| %{"#{x}"} }.join " "
     when Hash
@@ -361,7 +352,7 @@ class TmsuRuby
   extend TmsuRubyInitializer
 
   def self.file(path=nil)
-    TmsuRuby::TmsuFile.new path, vfs_path
+    TmsuRuby::TmsuFile.new path
   end
 
   def self.dir(*args)
@@ -370,10 +361,9 @@ class TmsuRuby
 
   class TmsuFile
     include TmsuFileAPI
-    attr_reader :path, :vfs_path
-    def initialize path, vfs_path
+    attr_reader :path
+    def initialize path
       @path = path || "."
-      @vfs_path = vfs_path
     end
   end
 end
