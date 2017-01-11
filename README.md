@@ -126,6 +126,11 @@ tmsu_file.tags # => { foo: nil, bar: nil }
 
 tmsu_file.tag(a: 1, b: 2) # .tag can also be passed a hash
 tmsu_file.tags # => { foo: nil, bar: nil, a: 1, b: 2 }
+
+# if a tag has a value, it needs to be specified in #untag
+# this is only needed for TmsuRuby.file
+# The model passes the value automatically.
+tmsu_file.untag("a=1")
 ```
 
 It's also possible to use `TmsuRuby` to work on multiple files instead of just one:
@@ -141,7 +146,7 @@ tmsu_file.tag_selector ["a", "b"]
 tmsu_file.tag_selector c: 1, d: 2
 
 # Simiarly to untag
-tmsu_file.untag_selector "c"
+tmsu_file.untag_selector "c=1"
 
 # check that the tags were added to files
 TmsuRuby.file("./my_pic.jpg").tags
