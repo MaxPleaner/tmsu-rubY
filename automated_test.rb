@@ -18,36 +18,49 @@ class User < TmsuModel
   end
 end
 
-
 # Case 1 - validation errors on save + update
 u = User.new name: "max"
 
 fail_if     { u.valid? }
-fail_unless { u.errors == ["email isn't valid"]
+
+fail_unless { u.errors == ["email  isn't valid"] }
+
 fail_if     { u.save }
+
 fail_if     { u.update(name: "potato") }
+
 fail_unless { u.name == "max" }
 
 # Case 2 - succesful save + update
 u[:email] = "maxpleaner@gmail.com"
 
 fail_if     { u.persisted? }
+
 fail_unless { u.valid? }
+
 fail_unless { u.save }
+
 fail_unless { u.persisted? }
+
 fail_unless { u.update(email: "max.pleaner@gmail.com") }
+
 fail_if     { u.update(email: "") }
 
 # Case 3 - getters + setters
 fail_unless { u.name == "max" }
+
 fail_unless { u["name"] == "max" }
+
 fail_unless { u[:name] == "max" }
 
 u[:name] = "max p."
 
 fail_unless { u[:name] == "max p." }
+
 fail_unless { u.attributes[:name] == "max p." }
+
 fail_unless { File.exists? u.path }
+
 fail_unless { File.read(u.path).empty? }
 
 u.save
@@ -55,25 +68,35 @@ u.save
 u.write "hello"
 
 fail_unless { File.read(u.path) == "hello" }
+
 fail_unless { u.tags == { 'email' => "max.pleaner@gmail.com", 'name' => "max\\ p." } }
+
 fail_unless { u.tags == u.attributes }
 
 # Case 4 - destroy attribute, destroy_record
 u.delete :name
 
+# tag has been deleted
 fail_unless { u.tags == { 'email' => "max.pleaner@gmail.com" } }
 
+# destroy deletes the file from the filesystem
 u.destroy
 
+# destroy makes it no longer persisted
 fail_if { u.persisted? }
 
-u = User.create(u.attributes.merge(name: "foo"))
+# initialize a record from another's attributes
+u = User.create(u.attributes.merge(name: "max p."))
+
+# clone saved succesfully
 fail_unless { u.persisted? }
 
 fail_unless { User.where(name: "max\\ p.")[0]&.name == "max\\ p." }
+
 fail_unless { User.find_by(name: "max\\ p.")&.name == "max\\ p." }
-byebug
+
 fail_unless { User.update_all(name: "max") }
+
 fail_unless { User.all[0].name == "max" }
 
 # Case4 - TmsuRuby.file
@@ -100,18 +123,41 @@ tmsu_file.tag(a: 1, b: 2)
 
 fail_unless { tmsu_file.tags == { 'foo' => nil, 'bar' => nil, 'a' => "1", 'b' => "2" } }
 
-glob_selector = "./**/*.jpg"
+`mkdir db/sample`
+
+filepath = "db/sample/#{SecureRandom.hex}.txt"
+
+`touch #{filepath}`
+
+glob_selector = "./db/sample/*.txt"
+
 tmsu_file = TmsuRuby.file glob_selector
+
 tmsu_file.tag_selector "foo"
+
 tmsu_file.tag_selector ["a", "b"]
+
 tmsu_file.tag_selector c: 1, d: 2
-tmsu_file.untag_selector "c"
 
-byebug
-fail_unless { TmsuRuby.file(file_path).tags == { 'foo' => nil, 'a' => nil, 'b' => nil, 'd' => "2" } }
+# When working with TmsuRuby.file, the untag operation requires the value to
+# be specified as well
 
-query_glob = "./**/*.jpg"
+# This is because TMSU can have duplicate keys
 
-fail_unless { TmsuRuby.file(query_glob).paths_query("foo") == [u.path] }
+tmsu_file.untag_selector "c=1"
 
-fail_unless { TmsuRuby.file.files("foo") == [u.path] } }
+# check results of glob actions
+fail_unless { TmsuRuby.file(filepath).tags == { 'foo' => nil, 'a' => nil, 'b' => nil, 'd' => "2" } }
+
+# scoped search
+# not working yet
+fail_unless { TmsuRuby.file(glob_selector).paths_query("foo").include? File.expand_path filepath }
+
+# global search
+# fail_unless { TmsuRuby.file.files("foo").include? File.expand_path filepath }
+
+
+at_exit do
+  `rm -rf db/sample`
+  `rm -rf db/*`
+end

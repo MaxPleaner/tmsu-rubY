@@ -204,8 +204,8 @@ class TmsuModel
     end
     return false unless valid?
     tag attributes
-    @attributes = tags.with_indifferent_access
     @persisted = true
+    @attributes = tags.with_indifferent_access
     true
   end
 
@@ -246,7 +246,9 @@ module SystemPatch
   refine Object do
     def system string
       if ENV["DEBUG"]
-        `#{string}`.tap &method(:puts)
+        return `#{string}`.tap &method(:puts)
+      else
+        return `#{string}`
       end
     end
   end
@@ -259,11 +261,11 @@ module TmsuRubyInitializer
   end
   def init_tmsu
     puts "initializing tmsu"
-    puts system "tmsu init"
+    system "tmsu init"
     puts "making vfs_path #{vfs_path}"
-    puts system "mkdir -p #{vfs_path}"
+    system "mkdir -p #{vfs_path}"
     puts "mounting vfs path"
-    puts system "tmsu mount #{vfs_path}"
+    system "tmsu mount #{vfs_path}"
   end
   def vfs_path
     "/home/max/tmsu_vfs"
@@ -274,7 +276,13 @@ module TmsuFileAPI
 
   using SystemPatch
 
+  def persisted?
+    return super if defined?(super)
+    File.exists? path
+  end
+
   def tags
+    return {} unless persisted?
     delimiter = /(?<!\\)\s/
     cmd_res = system("tmsu tags #{path}")
     cmd_res.chomp.split(delimiter)[1..-1].reduce({}) do |res, tag|
@@ -337,7 +345,7 @@ module TmsuFileAPI
     when Array
       tag_obj.join(" ")
     end
-    system "tmsu tag --tags '#{build_tag_arg tag_obj}' #{path}"
+    system "tmsu untag --tags '#{build_tag_arg tag_obj}' #{path}"
     files tag_obj
   end
 
