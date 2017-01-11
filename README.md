@@ -152,13 +152,12 @@ Using `TmsuRuby.file` you can search by tag as well. All these methods return
 an array of absolute paths
 
 ```rb
-query_glob = "./**/*.jpg"
 
 # To perform a scoped search (the same used by .where, .find_by, and .query):
 # This is a simple query, but the whole TMSU syntax is available
-TmsuRuby.file(query_glob).paths_query("foo")
+TmsuRuby.file('.').files("foo")
 
-# Search the whole filesystem for files with tag
+# The path defaults to '.', so this is the same:
 TmsuRuby.file.files("foo")
 ```
 
