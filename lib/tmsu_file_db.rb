@@ -18,7 +18,14 @@ class TmsuModel
   end
 
   def self.root_path
-    Config[:root_path] || "./db/#{SecureRandom.urlsafe_base64}"
+    Config[:root_path] || generate_path(within: "./db")
+  end
+
+  def self.generate_path(within: '.')
+    loop do
+      path = "#{within}/#{SecureRandom.hex}"
+      break path unless File.exists?(path)
+    end
   end
 
   def self.configure(root_path:)
@@ -26,6 +33,7 @@ class TmsuModel
     `mkdir -p #{path}`
     end
   end
+
 
   def self.validate(attribute=:generic, &blk)
     if attribute == :generic
@@ -42,10 +50,16 @@ class TmsuModel
   def self.opts_to_query opts
     case opts
     when Array
-      opts.join " "
+      opts.map { |opt| escape_whitespace opt }.join " "
     when Hash
-      opts.map { |k,v| "#{k}={v}" }.join(" ")
+      opts.map do |k,v|
+        "#{escape_whitespace k}=#{escape_whitespace v}"
+      end.join(" ")
     end
+  end
+
+  def self.create(attrs)
+    new(attrs).tap(&:save)
   end
 
   def self.find_by opts
@@ -56,21 +70,32 @@ class TmsuModel
     query opts_to_query opts
   end
 
+  def self.escape_whitespace(string)
+    string.to_s.gsub(/(?<!\\)\s/, '\ ')
+  end
+
+  def self.escape_hash_whitespace(hash)
+    hash.reduce({}) do |result, (k,v)|
+      result[escape_whitespace(k)] = escape_whitespace v
+      result
+    end
+  end
+
   def self.from_file(path)
-    new(TmsuFile.new(path).tags) { path }
+    new(escape_hash_whitespace TmsuRuby.file(path).tags) { path }
   end
 
   def self.all
-    Dir.glob(query_glob).map &method(:from_path)
+    Dir.glob(query_glob).map &method(:from_file)
   end
 
   def self.query string
-    TmsuFile.new(query_glob).paths_query(query).map &method(:from_path)
+    TmsuRuby.file(query_glob).paths_query(string).map &method(:from_file)
   end
 
   def self.update_all opts={}
     Dir.glob(query_glob).each do |path|
-      errors = new(path) { path }.tap { |inst| inst.update(opts) }.errors
+      errors = from_file(path).tap { |inst| inst.update(opts) }.errors
       unless errors.empty?
         raise(
           ArgumentError, "couldn't update all. Path #{path} caused errors: #{errors.join(", ")}"
@@ -88,7 +113,11 @@ class TmsuModel
 
   def initialize(attrs={}, &blk)
     attrs = attrs.with_indifferent_access
-    @path = blk ? blk.call : build_id(attrs.delete :id)
+    # normally for re-initializing a record from a file, .from_file is used.
+    # but there is another way, which is to pass a block to initialize
+    # which returns a path string.
+    # Example: TmsuModel.new { "file.txt" }.path # => "file.txt"
+    @path = blk ? blk.call : build_path
     @attributes = attrs
     @persisted = File.exists? @path
     @errors = []
@@ -101,14 +130,10 @@ class TmsuModel
     end
   end
 
-  def build_id(given=nil)
-    rand_id = given || SecureRandom.urlsafe_base64
-    prefix = "#{self.class::Config[:root_path]}"
-    if prefix
-      "#{prefix}/#{rand_id}"
-    else
-      "#{rand_id}"
-    end
+  def build_path
+    self.class.generate_path(
+      within: self.class::Config[:root_path] || "."
+    )
   end
 
   def []=(k,v)
@@ -123,6 +148,7 @@ class TmsuModel
   # To respect indifferent access of attributes,
   # uses has_key? instead of keys.include?
   def method_missing(sym, *arguments, &blk)
+    super unless defined?(attributes) && attributes.is_a?(Hash)
     if attributes.has_key? sym
       attributes[sym]
     else
@@ -170,8 +196,15 @@ class TmsuModel
   def save
     ensure_persisted
     ensure_root_path
+    original_attributes = tags
+    attributes.each do |k,v|
+      if !v.nil? && !(original_attributes[k] == v)
+        untag "#{k}=#{original_attributes[k]}"
+      end
+    end
     return false unless valid?
     tag attributes
+    @attributes = tags.with_indifferent_access
     @persisted = true
     true
   end
@@ -190,23 +223,31 @@ class TmsuModel
   end
 
   def destroy
+    `tmsu-fs-rm #{path}`
     `rm #{path}`
     @persisted = false
     self
   end
 
   def delete(attr)
-    untag(attr)
+    if attributes[attr].nil?
+      untag(attr)
+    else
+      val = attributes[attr]
+      untag("#{attr}=#{val}")
+    end
     attributes.delete attr
-    attr
   end
 
 end
 
+# This patch doesn't do anything unless ENV["DEBUG"] is set
 module SystemPatch
   refine Object do
     def system string
-      `#{string}`.tap &method(:puts)
+      if ENV["DEBUG"]
+        `#{string}`.tap &method(:puts)
+      end
     end
   end
 end
@@ -234,41 +275,53 @@ module TmsuFileAPI
   using SystemPatch
 
   def tags
-    system("tmsu tags #{path}").split(" ")[1..-1].reduce({}) do |res, tag|
-      key, val = tag.split("=")
+    delimiter = /(?<!\\)\s/
+    cmd_res = system("tmsu tags #{path}")
+    cmd_res.chomp.split(delimiter)[1..-1].reduce({}) do |res, tag|
+      key, val = tag.split("=").map do |str|
+        str
+      end
       res.tap { res[key] = val }
     end
   end
 
+  def require_persisted
+    unless persisted?
+      raise(RuntimeError, "called tags on unsaved record. path: #{path}")
+    end
+  end
+
   def paths_query(query)
-    query_root = "#{vfs_path}/queries/#{query}"
+    query_root = %{#{vfs_path}/queries/"#{query}"}
     system("ls #{query_root}").split("\n").map do |filename|
       system("readlink #{query_root}/#{filename}").chomp
     end
   end
 
   def untag tag_list
-    `touch #{path}` unless persisted?
+    `touch #{path}`
     system "tmsu untag #{path} #{tag_list}"
     tags
   end
 
   def tag tag_obj
-    `touch #{path}` unless persisted?
-    system "tmsu tag #{path} #{build_tag_arg tag_obj}"
+    `touch #{path}`
+    system %{tmsu tag #{path} #{build_tag_arg tag_obj}}
     tags
   end
 
   def build_tag_arg obj
     case obj
     when String
-      obj
+      %{"#{obj}"}
     when Array
-      obj.join " "
+      obj.map { |x| %{"#{x}"} }.join " "
     when Hash
-      obj.map {|k,v| "#{k}=#{v}" }.join " "
+      obj.map do |k,v|
+        %{"#{k}=#{v}"}
+      end.join " "
     else
-      obj
+      %{"#{obj}"}
     end
   end
 
