@@ -163,3 +163,6 @@ TmsuRuby.file.files("foo")
 ```
 
 
+**Test && Examples**
+
+See [automated_tests.rb](./automated_tests.rb), which can double as usage examples. 

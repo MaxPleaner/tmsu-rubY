@@ -90,7 +90,7 @@ class TmsuModel
   end
 
   def self.query string
-    TmsuRuby.file(query_glob).paths_query(string).map &method(:from_file)
+    TmsuRuby.file(query_glob).files(string).map &method(:from_file)
   end
 
   def self.update_all opts={}
@@ -299,13 +299,6 @@ module TmsuFileAPI
     end
   end
 
-  def paths_query(query)
-    query_root = %{#{vfs_path}/queries/"#{query}"}
-    system("ls #{query_root}").split("\n").map do |filename|
-      system("readlink #{query_root}/#{filename}").chomp
-    end
-  end
-
   def untag tag_list
     `touch #{path}`
     system "tmsu untag #{path} #{tag_list}"
@@ -359,7 +352,7 @@ module TmsuFileAPI
   end
 
   def files(tag_obj)
-    system("tmsu files #{build_tag_arg tag_obj }").split("\n")
+    system("tmsu files --path #{path} #{build_tag_arg tag_obj }").split("\n")
   end
 
 end
@@ -371,11 +364,15 @@ class TmsuRuby
     TmsuRuby::TmsuFile.new path, vfs_path
   end
 
+  def self.dir(*args)
+    file *args
+  end
+
   class TmsuFile
     include TmsuFileAPI
     attr_reader :path, :vfs_path
     def initialize path, vfs_path
-      @path = path
+      @path = path || "."
       @vfs_path = vfs_path
     end
   end

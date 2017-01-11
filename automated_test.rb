@@ -150,12 +150,13 @@ tmsu_file.untag_selector "c=1"
 fail_unless { TmsuRuby.file(filepath).tags == { 'foo' => nil, 'a' => nil, 'b' => nil, 'd' => "2" } }
 
 # scoped search
-# not working yet
-fail_unless { TmsuRuby.file(glob_selector).paths_query("foo").include? File.expand_path filepath }
+fail_unless { TmsuRuby.file("./db/sample").files("foo").include? "./#{filepath}" }
 
-# global search
-# fail_unless { TmsuRuby.file.files("foo").include? File.expand_path filepath }
+# scope defaults to .
+fail_unless { TmsuRuby.file.files("foo").include? "./#{filepath}" }
 
+
+puts "\n\nTEST PASSED\n\n"
 
 at_exit do
   `rm -rf db/sample`
