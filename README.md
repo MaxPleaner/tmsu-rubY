@@ -126,11 +126,6 @@ tmsu_file.tags # => { foo: nil, bar: nil }
 
 tmsu_file.tag(a: 1, b: 2) # .tag can also be passed a hash
 tmsu_file.tags # => { foo: nil, bar: nil, a: 1, b: 2 }
-
-# if a tag has a value, it needs to be specified in #untag
-# this is only needed for TmsuRuby.file
-# The model passes the value automatically.
-tmsu_file.untag("a=1")
 ```
 
 It's also possible to use `TmsuRuby` to work on multiple files instead of just one:
@@ -146,7 +141,7 @@ tmsu_file.tag_selector ["a", "b"]
 tmsu_file.tag_selector c: 1, d: 2
 
 # Simiarly to untag
-tmsu_file.untag_selector "c=1"
+tmsu_file.untag_selector "c"
 
 # check that the tags were added to files
 TmsuRuby.file("./my_pic.jpg").tags
@@ -157,12 +152,13 @@ Using `TmsuRuby.file` you can search by tag as well. All these methods return
 an array of absolute paths
 
 ```rb
+query_glob = "./**/*.jpg"
 
 # To perform a scoped search (the same used by .where, .find_by, and .query):
 # This is a simple query, but the whole TMSU syntax is available
-TmsuRuby.file('.').files("foo")
+TmsuRuby.file(query_glob).paths_query("foo")
 
-# The path defaults to '.', so this is the same:
+# Search the whole filesystem for files with tag
 TmsuRuby.file.files("foo")
 ```
 

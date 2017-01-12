@@ -323,12 +323,6 @@ module TmsuFileAPI
   end
 
   def untag_selector(tag_obj)
-    tag_arg = case tag_obj
-    when String
-      tag_obj
-    when Array
-      tag_obj.join(" ")
-    end
     system "tmsu untag --tags '#{build_tag_arg tag_obj}' #{path}"
     files tag_obj
   end
