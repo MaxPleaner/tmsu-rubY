@@ -110,7 +110,7 @@ An alternative to `TmsuModel` is to use `TmsuRuby.file` instead. This does _not_
 Note that these methods are technically available on `TmsuModel` instances as well. But this shouldn't be done, because it will cause the in-memory attributes to be out of sync. Also, some operations like `tag` will error if called on unsaved records.
 
 ```rb
-file_path = './my_pic.jpg' # this should already exist
+file_path = './my_file.mp3' # this should already exist
 
 tmsu_file = TmsuRuby.file file_path
 tmsu_file.tags # => {}
@@ -164,4 +164,4 @@ TmsuRuby.file.files("foo")
 
 **Test && Examples**
 
-See [automated_tests.rb](./automated_tests.rb), which can double as usage examples. 
+See [automated_test.rb](./automated_test.rb), which can double as usage examples. 
